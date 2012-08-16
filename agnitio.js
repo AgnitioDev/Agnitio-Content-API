@@ -2,6 +2,8 @@
  * agnitio.js
  *
  * The Agnitio Content API
+ * Documentation can be found at:
+ * http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)
  *
  * @author     Stefan Liden
  * @copyright  Copyright 2012 Agnitio
@@ -10,7 +12,7 @@
 (function () {
     
   // Is script running on iOS device?
-  var api_version = '0.9',
+  var api_version = '1.0',
       ua = navigator.userAgent,
      // From: http://davidwalsh.name/detect-ipad
      isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
@@ -168,7 +170,8 @@
    */
   ag.submit = (function() {
 
-    var currentSlide = null,
+    var currentSlideId = null,
+        currentData = null,
         enabled = true;
     
     function isEnabled () {
@@ -222,10 +225,28 @@
          chapterId      = data.chapterId || null,
          subChapterName = data.subChapter || null,
          subChapterId   = data.subChapterId || null,
-         slidePath      = data.path || null;
-     
+         slideIndex     = data.slideIndex || null,
+         slidePath      = data.path || null,
+         parent         = data.parent || null,
+         grandParent    = data.grandParent || null;
+
+     // Chapter validation and setting of parents
+     // Parents are set for backward compatibility
+     if (chapterName) {
+      if (subChapterName) {
+        grandParent = grandParent || chapterName;
+        parent = parent || subChapterName;
+      }
+      else {
+        parent = parent || chapterName;
+      }
+     }
+     else if (subChapterName) {
+      // Register error. Can't have subchapter without chapter
+     }
+
      // Exit previous slide if there is one
-     if (currentSlide) { slideExit(); }
+     if (currentSlideId) { slideExit(); }
 
      // The data to be sent to database
      monitoringData = {
@@ -238,16 +259,19 @@
        value: data.name,
        valueType: null,
        time: now,
+       slideIndex: slideIndex,
        slidePath: slidePath,
        chapterName: chapterName,
        chapterId: chapterId,
        subChapterName: subChapterName,
-       subChapterId: subChapterId
+       subChapterId: subChapterId,
+       parentSlideName: parent,
+       parentOfParentSlideName: grandParent
      };
      
      // Set the entered slide as the current one
-     // currentSlide = data.id;
-     currentSlide = data;
+     currentSlideId = data.id;
+     currentData = data;
      
      save(monitoringData);
     }
@@ -260,7 +284,7 @@
      
       var data, now;
        
-      if (!currentSlide) { return; }
+      if (!currentSlideId) { return; }
        
       now = timestamp();
        
@@ -270,7 +294,7 @@
         category: "slideExit",
         labelId: "id",
         label: "name",
-        valueId: currentSlide.id,
+        valueId: currentSlideId,
         value: undefined,
         valueType: undefined,
         time: now,
@@ -282,7 +306,8 @@
       };
        
       // Remove current slide
-      currentSlide = null;
+      currentSlideId = null;
+      // currentData = null;
        
       save(data);
     }
@@ -292,11 +317,7 @@
      * @public
      */
     function resume () {
-      var data;
-      if (!currentSlide) { return; }
-      data = currentSlide;
-      currentSlide = null;
-      ag.submit.slide(data);
+      ag.submit.slide(currentData);
     }
     
     /**
@@ -461,8 +482,8 @@
           labelId = data.labelId || null,
           valueId = data.valueId || null,
           valueType = data.valueType || 'text',
-          path = data.path || null,
-          isUnique = data.unique || true;
+          path = data.path || null;
+          isUnique = data.unique || false;
 
       monitorData = {
         isUnique: isUnique,
@@ -532,6 +553,7 @@
 
   // Send the API version being used to the Analyzer
   ag.submit.data({
+    unique: true,
     categoryId: "ag-001",
     category: "Versions",
     labelId: "ag-001-001",
@@ -563,19 +585,23 @@
   if (!window.submitSlideEnter) {
     window.isMonitoringEnabled = ag.submit.isEnabled;
     window.monitorSayHello = function() {};
-    window.submitSlideReEnter = ag.submit.resume;
     window.submitSlideEnter = function(slideId, slideName, slideIndex, parent, grandparent) {
       var gp = grandparent || null,
-          p = parent || null;
+          p = parent || null,
+          i = slideIndex || null;
       ag.submit.slide({
-        chapter: gp,
-        subChapter: p,
+        grandParent: gp,
+        parent: p,
+        slideIndex: i,
         id: slideId,
         name: slideName
       });
     };
     window.submitSlideExit = function() {
       ag.submit._slideExit();
+    }
+    window.submitSlideReEnter = function() {
+      ag.submit.resume();
     }
     window.submitDocumentOpen = function(id, name) {
       ag.submit.document(id, name);
@@ -585,8 +611,7 @@
     }
     window.submitCustomEvent = function(category, label, value, valueType) {
       var vt = valueType || 'text';
-      ag.submit.data({
-        unique: false,
+      ag.submit.event({
         category: category,
         label: label,
         value: value,
@@ -595,7 +620,7 @@
     }
     window.submitUniqueCustomEvent = function(category, label, value, valueType) {
       var vt = valueType || 'text';
-      ag.submit.data({
+      ag.submit.event({
         unique: true,
         category: category,
         label: label,
