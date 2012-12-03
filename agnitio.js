@@ -12,7 +12,7 @@
 (function () {
     
   // Is script running on iOS device?
-  var api_version = '1.0',
+  var api_version = '1.2.0',
       ua = navigator.userAgent,
      // From: http://davidwalsh.name/detect-ipad
      isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
@@ -98,17 +98,24 @@
 
   /**
    * Sends email from iPlanner
-   * NOTE: Can currently only send one file, and the file has to be in root
+   * NOTE: If using string for file attachment it will expect a filename, not path
    * @public     
    * @param address string   
    * @param subject string   
    * @param body string   
-   * @param fileName string   
+   * @param files array/string  
    */
-  ag.sendMail = function (address, subject, body, fileName) {
-    var args, invokeString, iFrame;
+  ag.sendMail = function (address, subject, body, files) {
+    var files = files || '',
+        params, args, invokeString, iFrame;
     if (isiPlanner) {
-      args = JSON.stringify({'address': address, 'subject': subject, 'body':body, 'fileName': fileName});
+      if (typeof files === 'string' || files instanceof String) {
+        params = {'address': address, 'subject': subject, 'body':body, 'fileName': files}
+      }
+      else {
+        params = {'address': address, 'subject': subject, 'body':body, 'fileNames': files}
+      }
+      args = JSON.stringify(params);
       calliPlanner('sendMail', args);
     }
   }
@@ -298,6 +305,7 @@
         value: undefined,
         valueType: undefined,
         time: now,
+        slideIndex: undefined,
         slidePath: undefined,
         chapterName:undefined,
         chapterId: undefined,
@@ -307,7 +315,6 @@
        
       // Remove current slide
       currentSlideId = null;
-      // currentData = null;
        
       save(data);
     }
@@ -352,37 +359,6 @@
     }
     
     /**
-     * Close opened document
-     * @public
-     */ 
-    function documentClose () {
-     
-      var data, now;
-      
-      if (!currentDocument) { return; }
-       
-      now = timestamp();
-
-      // The data to be sent to database
-      data = {
-        type: "system",
-        categoryId: null,
-        category: "documentClose",
-        labelId: "id",
-        label: "name",
-        valueId: currentDocument,
-        value: undefined,
-        valueType: undefined,
-        time: now
-      };
-      
-      // Set the entered slide as the current one
-      currentDocument = null;
-       
-      save(data);
-    }
-
-    /**
      * Save opened reference
      * @public
      * @param id Id of the opened reference
@@ -409,34 +385,6 @@
       
       // Set the opened document as the current one
       currentDocument = id;
-       
-      save(data);
-    }
-
-    /**
-     * Save opened media
-     * @public
-     * @param id Id of the opened media
-     * @param name Name of the opened media
-     */ 
-    function mediaOpen (id, name) {
-     
-      var data, now;
-       
-      now = timestamp();
-       
-      // The data to be sent to database
-      data = {
-        type: "system",
-        categoryId: null,
-        category: "mediaOpen",
-        labelId: "id",
-        label: "name",
-        valueId: id,
-        value: name,
-        valueType: null,
-        time: now
-      };
        
       save(data);
     }
@@ -519,7 +467,6 @@
       resume: resume,
       document: documentOpen,
       reference: referenceOpen,
-      media: mediaOpen,
       structure: structure,
       data: customEvent,
       event: customEvent,
