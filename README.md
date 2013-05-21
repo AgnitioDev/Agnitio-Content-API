@@ -12,3 +12,6 @@ This release includes an update to the ag.sendMail method that will allow it to 
 
 - Updated to version 1.2.0
 - Updated ag.sendMail to accept an array of file paths as last parameter
+
+
+papi change 
