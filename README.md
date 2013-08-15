@@ -6,6 +6,19 @@ Please see following Wiki page for documentation: http://wiki.agnitio.com/index.
 
 # Change log
 
+## Version 1.3.0 2013-08-14
+
+This release add API methods to get meeting and presenter attributes.
+
+- Updated to version 1.3.0
+- Added ag.data.getCallAttributes
+- Added ag.data.call_attributes
+- Added ag.data.getPresenterAttributes
+- Added ag.data.presenter
+- Added ag.getVersion
+- Fixed check for enabled monitoring
+- Removed minified version
+
 ## Version 1.2.0 2012-12-03
 
 This release includes an update to the ag.sendMail method that will allow it to send multiple attachments.

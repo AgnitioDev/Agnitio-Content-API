@@ -6,13 +6,13 @@
  * http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)
  *
  * @author     Stefan Liden
- * @copyright  Copyright 2012 Agnitio
+ * @copyright  Copyright 2013 Agnitio
  */
 
 (function () {
     
   // Is script running on iOS device?
-  var api_version = '1.2.0',
+  var api_version = '1.3.0',
       ua = navigator.userAgent,
      // From: http://davidwalsh.name/detect-ipad
      isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
@@ -34,6 +34,14 @@
     
   // Create the global Agnitio namespace 'ag'
   window.ag = window.ag || {};
+
+  /**
+   * Get version of Agnitio Content API (this file) 
+   * @public        
+   */
+  ag.getVersion = function () {
+    return api_version;
+  }
 
   /***********************************************************
   *
@@ -63,18 +71,6 @@
       calliPlanner('sigCapture', args);
     }
   }
-
-  /**
-   * Close presentation in iPlanner.
-   * NOTE: normally double-clicking presentation is used
-   * !!!: This is currently not working in the iPlanner
-   * @public     
-   */
-  // ag.closePresentation = function () {
-  //   if (isiPlanner) {
-  //     calliPlanner('closePresentation', '');
-  //   }
-  // }
 
   /**
    * Opens PDF in iPlanner or browser
@@ -132,8 +128,32 @@
    */
   ag.data = (function() {
     // Holder for contacts returned from calling 'ag.data.getCallContacts'
-    var call_contacts = null;
-    
+    var presenter = null,
+        call_attributes = null,
+        call_contacts = null;
+
+    /**
+     * Save returned presenter attributes to property
+     * Is used as callback in 'ag.data.getPresenter'
+     * @private
+     * @param data Data object
+     */
+    function savePresenter (data) {
+      var attributes = JSON.parse(data);
+      ag.data.presenter = attributes;
+    }
+
+    /**
+     * Save returned meeting attributes to property
+     * Is used as callback in 'ag.data.getMeetingAttributes'
+     * @private
+     * @param data Data object
+     */
+    function saveCallAttributes (data) {
+      var attributes = JSON.parse(data);
+      ag.data.call_attributes = attributes;
+    }
+
     /**
      * Save returned contacts to property
      * Is used as callback in 'ag.data.getCallContacts'
@@ -146,8 +166,51 @@
     }
 
     /**
+     * Get presenter attributes (e.g. sales rep attributes)
+     * Implemented in iPlanner 1.11
+     * @public
+     */
+     function getPresenter () {
+      if (isiPlanner) {
+        calliPlanner('getPresenter', '{"resultFunction": "ag.data._savePresenter"}');
+      }
+    }
+    
+    /**
+     * Get meeting attributes (dynamic custom attributes)
+     * If no parameter is given it will return all known attributes for the meeting
+     * Implemented in iPlanner 1.11
+     * @public
+     * @param attributes Array of names of desired attribute - OPTIONAL
+     */
+     function getCallAttributes (attributes) {
+      var attr = attributes || [],
+          attrStr = JSON.stringify(attr);
+      if (isiPlanner) {
+        calliPlanner('getMeetingDynamicAttributes', '{"wantedAttributes": ' + attrStr + ', "resultFunction": "ag.data._saveCallAttributes"}');
+      }
+    }
+
+    /**
+     * WORK IN PROGRESS
+     * Set meeting attributes (dynamic custom attributes)
+     * If no parameter is given it will return all known attributes for the meeting
+     * Implemented in iPlanner 1.11
+     * @public
+     * @param attributes Array of names of desired attribute - OPTIONAL
+     */
+     function setCallAttributes (attributes) {
+      var attr = attributes || [];
+      // if (isiPlanner) {
+      //   calliPlanner('getMeetingDynamicAttributes', '{"wantedAttributes": attr, "resultFunction": "ag.data._saveCallAttributes"}');
+      // }
+    }
+    
+    /**
      * Get contacts that have been set up in the pre-call data
      * Will store the contacts as JavaScript objects to 'ag.data.call_contacts'
+     * This function is best called when the presentation is initialized
+     * Implemented in iPlanner 1.9.1
      * @public
      */
     function getCallContacts () {
@@ -158,8 +221,14 @@
 
     // Public API
     return {
+      presenter: presenter,
       call_contacts: call_contacts,
+      call_attributes: call_attributes,
+      getPresenter: getPresenter,
+      getCallAttributes: getCallAttributes,
       getCallContacts: getCallContacts,
+      _savePresenter: savePresenter,
+      _saveCallAttributes: saveCallAttributes,
       _saveContacts: saveContacts
     }
 
@@ -394,6 +463,7 @@
      * @public
      * @param name string Label to identify structure
      * @param data Data object to save
+     * DEPRECATED
      */ 
     function structure (name, structure) {
 
