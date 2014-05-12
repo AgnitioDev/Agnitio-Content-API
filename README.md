@@ -6,6 +6,15 @@ Please see following Wiki page for documentation: http://wiki.agnitio.com/index.
 
 # Change log
 
+## Version 1.4.0 2013-08-14
+
+Added debug logging functionality.
+
+- Added ag.debug functionality
+- Added ag.debug.listen
+- Added ag.debug.getEvents
+- Another fix to enabled monitoring check
+
 ## Version 1.3.0 2013-08-14
 
 This release add API methods to get meeting and presenter attributes.

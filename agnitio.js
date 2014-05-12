@@ -12,7 +12,7 @@
 (function () {
     
   // Is script running on iOS device?
-  var api_version = '1.3.0',
+  var api_version = '1.4.0',
       ua = navigator.userAgent,
      // From: http://davidwalsh.name/detect-ipad
      isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
@@ -42,6 +42,80 @@
   ag.getVersion = function () {
     return api_version;
   }
+
+  /***********************************************************
+  *
+  * Agnitio Debugger
+  *
+  ***********************************************************/
+
+  ag.debug = (function() {
+
+    var data = [], // Container for all monitoring data
+        listeners = [],
+        shouldLog = false,
+        initialized = false;
+
+    /**
+     * Initialize debug
+     * @public
+     */
+    function init (log) {
+      initialized = true;
+      if (log) shouldLog = true;
+      if (window.console && window.console.warn) {
+        console.warn('This presentation is in debug mode and will not submit to Agnitio Analytics.\nRemove ag.debug.init() call before publishing.');
+      }
+    }
+
+    /**
+     * Get events log 
+     * @public  
+     */
+    function getEvents () {
+      return data;
+    }
+
+    /**
+     * Allow app to listen for monitoring events 
+     * @public  
+     */
+    function listen (callback) {
+      listeners.push(callback);
+    }
+
+    /**
+     * Publish monitoring event to listeners
+     * This will be called from the save function in ag.submit
+     * @protected  
+     */
+    function publish (event) {
+      if (initialized) {
+        // If the unique flag is set to true, we need to replace any previous ones
+        // Only worry about this if specifically in debug mode
+        if (event.isUnique) {
+          data.forEach(function(loggedEvent, i) {
+            if ((loggedEvent.category === event.category) && (loggedEvent.label === event.label)) {
+              data.splice(i, 1);
+            }
+          });
+        }
+        listeners.forEach(function(callback) {
+          callback(event);
+        });
+        if (shouldLog) console.log('Agnitio Event: ' + event.category, event);
+      }
+      data.push(event);
+    }
+
+    return {
+      init: init,
+      initialized: initialized,
+      getEvents: getEvents,
+      listen: listen,
+      _publish: publish
+    }
+  }());
 
   /***********************************************************
   *
@@ -264,19 +338,25 @@
 
     // Default save method, used internally by API
     function save (data) {
-     var formattedData, beacon, url;
-     if (isEnabled) {
-       formattedData = JSON.stringify(data);
-       // console.log("Saving " + data.valueId + " data...");
-     }
+      var formattedData, beacon, url;
+      if (isEnabled()) {
+        formattedData = JSON.stringify(data);
+        if (!ag.debug.initialized) {
+          // console.log("Saving " + data.valueId + " data...");
+        }
+        ag.debug._publish(data);
+      }
     }
 
     // Save function if viewed in iPlanner
     function saveForiPlanner (data) {
       var formattedData;
-      if (isEnabled) {
-       formattedData = JSON.stringify(data);
-       calliPlanner('monitoringEvent', formattedData);
+      if (isEnabled()) {
+        formattedData = JSON.stringify(data);
+        if (!ag.debug.initialized) {
+          calliPlanner('monitoringEvent', formattedData);
+        }
+        ag.debug._publish(data);
       }
     }
 
