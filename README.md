@@ -6,7 +6,7 @@ Please see following Wiki page for documentation: http://wiki.agnitio.com/index.
 
 # Change log
 
-## Version 1.4.0 2013-08-14
+## Version 1.4.0 2014-04-25
 
 Added debug logging functionality.
 
