@@ -6,6 +6,20 @@ Please see following Wiki page for documentation: http://wiki.agnitio.com/index.
 
 # Change log
 
+## Version 1.5.0 2014-05-15
+
+Exposed save and invoke API to allow customization.
+Now possible to hook into the events using ag.on(event, callback) API
+Default invoke set to send custom event.
+
+- Added ag.submit.save
+- Added ag.setInvoke
+- Added private invoke method
+- Added ag.platform API
+- Added Pub/Sub event system
+- API will dispatch custom event by default
+- Improved debugging feature
+
 ## Version 1.4.0 2014-04-25
 
 Added debug logging functionality.

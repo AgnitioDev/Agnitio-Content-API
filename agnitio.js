@@ -2,26 +2,48 @@
  * agnitio.js
  *
  * The Agnitio Content API
+ *
  * Documentation can be found at:
  * http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)
  *
  * @author     Stefan Liden
- * @copyright  Copyright 2013 Agnitio
+ * @copyright  Copyright 2014 Agnitio
  */
 
 (function () {
-    
+
   // Is script running on iOS device?
-  var api_version = '1.4.0',
+  var api_version = '1.5.0',
+      customInvoke = false,
       ua = navigator.userAgent,
      // From: http://davidwalsh.name/detect-ipad
      isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
      isSafari = ua.match(/Safari/i) != null,
      isiPlanner = isiPad && !isSafari;
 
+  /**
+   * Invoke method on platform/device
+   * @private       
+   */
+  function invoke (api, params) {
+    // Default will be no action
+    // Will be overwritten based on what platform it's running in
+  }
+
+  /**
+  * Publish event asynchronously
+  * @private       
+  */
+  function publish (api, data) {
+    setTimeout(function() {
+      ag.publish(api, data);
+    },0); 
+  }
+
   // Invoke iPlanner public method
   function calliPlanner (api, params) {
     var invokeString, iFrame;
+    // invokeString = "http://engager.agnitio.com/" + api + "?" + encodeURIComponent(params)
     if (isiPlanner) {
       invokeString = "objc://iplanner/" + api + "?" + encodeURIComponent(params),
       iFrame = document.createElement("IFRAME");
@@ -31,9 +53,23 @@
       iFrame = null;
     }
   }
-    
+
+  // Set save method depending on environment
+  if (isiPlanner) {
+    invoke = calliPlanner;
+  }
+
   // Create the global Agnitio namespace 'ag'
   window.ag = window.ag || {};
+
+  /**
+   * Set custom invoke method
+   * @public       
+   */
+  ag.setInvoke = function (fn) {
+    customInvoke = true;
+    invoke = fn;
+  }
 
   /**
    * Get version of Agnitio Content API (this file) 
@@ -45,52 +81,87 @@
 
   /***********************************************************
   *
+  * Pub/Sub
+  *
+  ***********************************************************/
+
+  var listeners = {};
+  var tokens = {}; // Will allow unregistering listener
+
+  // Listen to an event
+  ag.on = function (event, callback) {
+    var token;
+    if (!listeners.hasOwnProperty(event)) {
+      listeners[event] = [];
+    }
+    // ln = listeners[event].length;
+    token = event + "_" + new Date().getTime();
+    listeners[event].push(token);
+    tokens[token] = [event, callback];
+    return token;
+  }
+
+  ag.off = function (token) {
+    var pos, listener;
+    var evt = tokens[token];
+    if (evt) {
+      listener = listeners[evt[0]];
+      pos = listener.indexOf(token);
+      listener.splice(pos, 1);
+    }
+  }
+
+  ag.publish = function (event, args) {
+    if (listeners.hasOwnProperty(event)) {
+      for (var i = 0; i < listeners[event].length; ++i) {
+        try {
+          tokens[listeners[event][i]][1].call(null, args);
+          // listeners[event][i].call(null, args);
+        } catch (e) {
+          if (console && console.error) {
+            console.error(e);
+          }
+        }
+      }
+    }
+  }
+
+  /***********************************************************
+  *
   * Agnitio Debugger
   *
   ***********************************************************/
 
-  ag.debug = (function() {
+  // To access API it should be called as
+  // var debugger = ag.debug();
 
-    var data = [], // Container for all monitoring data
-        listeners = [],
-        shouldLog = false,
-        initialized = false;
+  ag.debug = function(writeToConsole) {
 
-    /**
-     * Initialize debug
-     * @public
-     */
-    function init (log) {
-      initialized = true;
-      if (log) shouldLog = true;
-      if (window.console && window.console.warn) {
-        console.warn('This presentation is in debug mode and will not submit to Agnitio Analytics.\nRemove ag.debug.init() call before publishing.');
+    var writeToConsole = writeToConsole || false;
+    var active = false;
+    var data = []; // Container for all monitoring data
+    // Event listener tokens
+    var meToken, pdfToken, mailToken;
+
+    if (window.console && window.console.warn) {
+      console.warn('This presentation is in debug mode and will not submit to Agnitio Analytics.\nRemove ag.debug() call before publishing.');
+    }
+
+    // Write to console
+    function write (api, info) {
+      if (writeToConsole) console.log('[DEBUG] ' + api, info);
+    }
+
+    function validate (event) {
+      if (event.category && event.label && event.value || event.category === 'slideExit') {
+        return true;
       }
+      return false;
     }
 
-    /**
-     * Get events log 
-     * @public  
-     */
-    function getEvents () {
-      return data;
-    }
-
-    /**
-     * Allow app to listen for monitoring events 
-     * @public  
-     */
-    function listen (callback) {
-      listeners.push(callback);
-    }
-
-    /**
-     * Publish monitoring event to listeners
-     * This will be called from the save function in ag.submit
-     * @protected  
-     */
-    function publish (event) {
-      if (initialized) {
+    // Log a monitoring event
+    function log (event) {
+      if (validate(event)) {
         // If the unique flag is set to true, we need to replace any previous ones
         // Only worry about this if specifically in debug mode
         if (event.isUnique) {
@@ -100,22 +171,84 @@
             }
           });
         }
-        listeners.forEach(function(callback) {
-          callback(event);
-        });
-        if (shouldLog) console.log('Agnitio Event: ' + event.category, event);
+        data.push(event);   
+        write(event.category, event);
       }
-      data.push(event);
+      // TODO: log error
+    }
+
+
+    // Set up listeners
+    function start () {
+      active = true;
+      meToken = ag.on('monitoringEvent', log);
+      pdfToken = ag.on('openPDF', function(path) {write('openPDF', path)} );
+      mailToken = ag.on('sendMail', function(params) {write('sendMail', params)} );
+      captureToken = ag.on('captureImage', function(params) {write('captureImage', params)} );
+      presenterToken = ag.on('getPresenter', function(params) {write('getPresenter', params)} );
+      contactsToken = ag.on('getCallContacts', function(params) {write('getCallContacts', params)} );
+      attributesToken = ag.on('getCallAttributes', function(params) {write('getCallAttributes', params)} );
+    }
+
+    // Stop debugging
+    function stop () {
+      active = false;
+      ag.off(meToken); 
+      ag.off(pdfToken); 
+      ag.off(mailToken);
+      ag.off(captureToken);
+      ag.off(presenterToken);
+      ag.off(contactsToken);
+      ag.off(attributesToken);
+    }
+
+    // Get the log data
+    function getLog () {
+      return data;
+    }
+
+    start();
+
+    // Public API
+    return {
+      start: start,
+      stop: stop,
+      getLog: getLog
+    }
+  };
+
+  /***********************************************************
+  *
+  * Get information about the platform
+  *
+  ***********************************************************/
+
+  ag.platform = (function() {
+
+    function info () {
+      if (window.agnitioInfo) {
+          return window.agnitioInfo;
+      }
+      else if (window.iPlanner) {
+          return window.iPlanner;
+      }
+      return undefined;
+    }
+
+    // Utility for quickly checking if currently running in Agnitio
+    function isAgnitio () {
+      if (window.agnitioInfo || window.iPlanner) {
+          return true;
+      }
+      return false;
     }
 
     return {
-      init: init,
-      initialized: initialized,
-      getEvents: getEvents,
-      listen: listen,
-      _publish: publish
+      info: info,
+      isAgnitio: isAgnitio
     }
   }());
+
 
   /***********************************************************
   *
@@ -139,11 +272,9 @@
       emailSubject: options.emailSubject || null,
       emailBody: options.emailBody || null
     },
-    args;
-    if (isiPlanner) {
-      args = JSON.stringify(params);
-      calliPlanner('sigCapture', args);
-    }
+    args = JSON.stringify(params);
+    invoke('sigCapture', args);
+    publish('captureImage', params);
   }
 
   /**
@@ -156,9 +287,8 @@
   ag.openPDF = function (path, name) {
     var log = log || false,
         fileName;
-    if (isiPlanner) {
-      calliPlanner('openPDF', path);
-    }
+    invoke('openPDF', path);
+    publish('openPDF', path);
     // If name is included, automatically log opening of document
     if (name) {
       fileName = path.replace(/^.*[\\\/]/, '');
@@ -178,16 +308,15 @@
   ag.sendMail = function (address, subject, body, files) {
     var files = files || '',
         params, args, invokeString, iFrame;
-    if (isiPlanner) {
-      if (typeof files === 'string' || files instanceof String) {
-        params = {'address': address, 'subject': subject, 'body':body, 'fileName': files}
-      }
-      else {
-        params = {'address': address, 'subject': subject, 'body':body, 'fileNames': files}
-      }
-      args = JSON.stringify(params);
-      calliPlanner('sendMail', args);
+    if (typeof files === 'string' || files instanceof String) {
+      params = {'address': address, 'subject': subject, 'body':body, 'fileName': files}
     }
+    else {
+      params = {'address': address, 'subject': subject, 'body':body, 'fileNames': files}
+    }
+    args = JSON.stringify(params);
+    invoke('sendMail', args);
+    publish('sendMail', params);
   }
 
   /***********************************************************
@@ -244,12 +373,11 @@
      * Implemented in iPlanner 1.11
      * @public
      */
-     function getPresenter () {
-      if (isiPlanner) {
-        calliPlanner('getPresenter', '{"resultFunction": "ag.data._savePresenter"}');
-      }
+    function getPresenter () {
+      invoke('getPresenter', '{"resultFunction": "ag.data._savePresenter"}');
+      publish('getPresenter', null);
     }
-    
+
     /**
      * Get meeting attributes (dynamic custom attributes)
      * If no parameter is given it will return all known attributes for the meeting
@@ -257,12 +385,11 @@
      * @public
      * @param attributes Array of names of desired attribute - OPTIONAL
      */
-     function getCallAttributes (attributes) {
+    function getCallAttributes (attributes) {
       var attr = attributes || [],
           attrStr = JSON.stringify(attr);
-      if (isiPlanner) {
-        calliPlanner('getMeetingDynamicAttributes', '{"wantedAttributes": ' + attrStr + ', "resultFunction": "ag.data._saveCallAttributes"}');
-      }
+      invoke('getMeetingDynamicAttributes', '{"wantedAttributes": ' + attrStr + ', "resultFunction": "ag.data._saveCallAttributes"}');
+      publish('getCallAttributes', attr);
     }
 
     /**
@@ -273,13 +400,11 @@
      * @public
      * @param attributes Array of names of desired attribute - OPTIONAL
      */
-     function setCallAttributes (attributes) {
+    function setCallAttributes (attributes) {
       var attr = attributes || [];
-      // if (isiPlanner) {
-      //   calliPlanner('getMeetingDynamicAttributes', '{"wantedAttributes": attr, "resultFunction": "ag.data._saveCallAttributes"}');
-      // }
+    // invoke('getMeetingDynamicAttributes', '{"wantedAttributes": attr, "resultFunction": "ag.data._saveCallAttributes"}');
     }
-    
+
     /**
      * Get contacts that have been set up in the pre-call data
      * Will store the contacts as JavaScript objects to 'ag.data.call_contacts'
@@ -288,9 +413,8 @@
      * @public
      */
     function getCallContacts () {
-      if (isiPlanner) {
-        calliPlanner('getCallContacts', 'ag.data._saveContacts');
-      }
+      invoke('getCallContacts', 'ag.data._saveContacts');
+      publish('getCallContacts', null);
     }
 
     // Public API
@@ -323,7 +447,7 @@
     var currentSlideId = null,
         currentData = null,
         enabled = true;
-    
+
     function isEnabled () {
       return enabled;
     }
@@ -336,27 +460,11 @@
       enabled = true;
     }
 
-    // Default save method, used internally by API
-    function save (data) {
-      var formattedData, beacon, url;
-      if (isEnabled()) {
-        formattedData = JSON.stringify(data);
-        if (!ag.debug.initialized) {
-          // console.log("Saving " + data.valueId + " data...");
-        }
-        ag.debug._publish(data);
-      }
-    }
-
     // Save function if viewed in iPlanner
-    function saveForiPlanner (data) {
-      var formattedData;
+    function save (data) {
       if (isEnabled()) {
-        formattedData = JSON.stringify(data);
-        if (!ag.debug.initialized) {
-          calliPlanner('monitoringEvent', formattedData);
-        }
-        ag.debug._publish(data);
+        invoke('monitoringEvent', JSON.stringify(data));
+        publish('monitoringEvent', data);
       }
     }
 
@@ -424,12 +532,12 @@
        parentSlideName: parent,
        parentOfParentSlideName: grandParent
      };
-     
+
      // Set the entered slide as the current one
      currentSlideId = data.id;
      currentData = data;
-     
-     save(monitoringData);
+
+     ag.submit.save(monitoringData);
     }
 
     /**
@@ -437,13 +545,13 @@
      * @private
      */
     function slideExit () {
-     
+
       var data, now;
-       
+
       if (!currentSlideId) { return; }
-       
+
       now = timestamp();
-       
+
       data = {
         type: "system",
         categoryId: null,
@@ -461,11 +569,11 @@
         subChapterName: undefined,
         subChapterId: undefined
       };
-       
+
       // Remove current slide
       currentSlideId = null;
-       
-      save(data);
+
+      ag.submit.save(data);
     }
 
     /**
@@ -475,7 +583,7 @@
     function resume () {
       ag.submit.slide(currentData);
     }
-    
+
     /**
      * Save opened document
      * @public
@@ -483,9 +591,9 @@
      * @param name Name of the opened document
      */ 
     function documentOpen (id, name) {
-     
+
       var data, now;
-       
+
       now = timestamp();
 
       // The data to be sent to database
@@ -500,13 +608,13 @@
         valueType: null,
         time: now
       };
-      
+
       // Set the opened document as the current one
       currentDocument = id;
-       
-      save(data);
+
+      ag.submit.save(data);
     }
-    
+
     /**
      * Save opened reference
      * @public
@@ -514,11 +622,11 @@
      * @param name Name of the opened reference
      */ 
     function referenceOpen (id, name) {
-     
+
       var data, now;
-       
+
       now = timestamp();
-       
+
       // The data to be sent to database
       data = {
         type: "system",
@@ -531,11 +639,11 @@
         valueType: null,
         time: now
       };
-      
+
       // Set the opened document as the current one
       currentDocument = id;
-       
-      save(data);
+
+      ag.submit.save(data);
     }
 
     /**
@@ -563,7 +671,7 @@
         time: now
       }
 
-      save(monitorData);
+      ag.submit.save(monitorData);
     }
 
     /**
@@ -597,29 +705,22 @@
         time: now
       }
 
-      save(monitorData);
-    }
-
-    // Set save method depending on environment
-    if (isiPlanner) {
-      save = saveForiPlanner;
-    }
-    else {
-      //TODO: Create the necessary objects that are normally created by iPlanner
+      ag.submit.save(monitorData);
     }
 
     // Public API
     return {
+      save: save, // override save method
       isEnabled: isEnabled,
       disable: disable,
       enable: enable,
       slide: slide,
       resume: resume,
-      document: documentOpen,
+      'document': documentOpen,
       reference: referenceOpen,
       structure: structure,
       data: customEvent,
-      event: customEvent,
+      'event': customEvent,
       _slideExit: slideExit
     }
 
@@ -630,7 +731,7 @@
   * Make sure JSON is available, else make it so
   *
   ***********************************************************/
-  
+
   // Make sure JSON methods are available
   // TODO: TEST!
   if (!isiPad && !window.JSON) {
@@ -680,7 +781,7 @@
 
   // Monitoring events
   if (!window.submitSlideEnter) {
-    window.isMonitoringEnabled = ag.submit.isEnabled;
+    window.isMonitoringEnabled = ag.submit.isEnabled();
     window.monitorSayHello = function() {};
     window.submitSlideEnter = function(slideId, slideName, slideIndex, parent, grandparent) {
       var gp = grandparent || null,
