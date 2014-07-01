@@ -6,11 +6,20 @@ Please see following Wiki page for documentation: http://wiki.agnitio.com/index.
 
 # Change log
 
+## Version 1.5.1 2014-07-01
+
+API added: ag.platform
+Updated device check for changes in iOS 7.1
+
+- Added ag.platform.info()
+- Added ag.platform.isAgnitio()
+- Added ag.platform.isApp() 
+
 ## Version 1.5.0 2014-05-15
 
 Exposed save and invoke API to allow customization.
 Now possible to hook into the events using ag.on(event, callback) API
-Default invoke set to send custom event.
+Improved debugging API
 
 - Added ag.submit.save
 - Added ag.setInvoke
