@@ -10,11 +10,22 @@
  * @copyright  Copyright 2014 Agnitio
  */
 
+/**
+ * Used as callback when getting Agnitio platform info from device
+ * Has to be directly on window object
+ * @public        
+ */
+window.setAgnitioPlatform = function(data) {
+  var info = JSON.parse(data);
+  window.agnitioInfo = info;
+  ag.setAgnitioInterface(info);
+};
+
 (function () {
 
-  // Is script running on iOS device?
-  var api_version = '1.5.1',
+  var api_version = '1.6.0',
       customInvoke = false,
+      appInterface = null,
       ua = navigator.userAgent,
       // From: http://davidwalsh.name/detect-ipad
       isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
@@ -24,54 +35,29 @@
       // isAndroid = ua.indexOf("Android") > -1,
       isiPlanner = isUIWebView; // Default, TODO: check platform.isAgnitio
 
-  /**
-   * Invoke method on platform/device
-   * @private       
-   */
-  function invoke (api, params) {
-    // Default will be no action
-    // Will be overwritten based on what platform it's running in
-  }
-
-  /**
-  * Publish event asynchronously
-  * @private       
-  */
-  function publish (api, data) {
-    setTimeout(function() {
-      ag.publish(api, data);
-    },0); 
-  }
-
-  // Invoke iPlanner public method
-  function calliPlanner (api, params) {
-    var invokeString, iFrame;
-    // invokeString = "http://engager.agnitio.com/" + api + "?" + encodeURIComponent(params)
-    if (isiPlanner) {
-      invokeString = "objc://iplanner/" + api + "?" + encodeURIComponent(params),
-      iFrame = document.createElement("IFRAME");
-      iFrame.setAttribute("src", invokeString);
-      document.body.appendChild(iFrame); 
-      iFrame.parentNode.removeChild(iFrame);
-      iFrame = null;
-    }
-  }
-
-  // Set save method depending on environment
-  if (isiPlanner) {
-    invoke = calliPlanner;
-  }
-
   // Create the global Agnitio namespace 'ag'
   window.ag = window.ag || {};
 
+  // At this point entire API is available
+  ag.init = function() {
+    // Send the API version being used to the Analyzer
+    ag.submit.data({
+      unique: true,
+      categoryId: "ag-001",
+      category: "Versions",
+      labelId: "ag-001-001",
+      label: "Agnitio API version",
+      value: api_version
+    });
+  }
+
   /**
-   * Set custom invoke method
+   * Set custom invoke interface
    * @public       
    */
-  ag.setInvoke = function (fn) {
+  ag.setInvoke = function (to) {
     customInvoke = true;
-    invoke = fn;
+    appInterface = to;
   }
 
   /**
@@ -82,6 +68,50 @@
     return api_version;
   }
 
+  /**
+   * Get version of Agnitio Content API (this file) 
+   * @public
+   * @param info object OPTIONAL      
+   */
+  ag.setAgnitioInterface = function(info) {
+    var info = info || window.agnitioInfo || window.iPlanner;
+    if (!info) {
+      // Uncomment this for Engager C# version
+      // connect("http://engager.agnitio.com", "agnitioInfo");
+    }
+    else if (info.applicationName === "Engager C#") {
+      appInterface = "http://engager.agnitio.com";
+    }
+    else if (info.applicationName === "Engager iOS" || info.applicationName === "CLM iPlanner") {
+      appInterface = "objc://iplanner";
+    }
+    // Otherwise it will have to be set manually using ag.setInvoke
+    // Alternatively Pub/Sub feature can be used
+  };
+
+  /**
+   * Invoke method on platform/device
+   * @private       
+   */
+  function invoke (api, params) {
+    // Default will be no action
+    if (appInterface) connect(appInterface, api, encodeURIComponent(params));
+  } 
+
+  // Invoke public method of Agnitio device/server
+  function connect (to, api, params) {
+    var invokeString, iFrame;
+    invokeString = to + "/" + api + "?" + params,
+    iFrame = document.createElement("IFRAME");
+    iFrame.setAttribute("src", invokeString);
+    document.body.appendChild(iFrame); 
+    iFrame.parentNode.removeChild(iFrame);
+    iFrame = null;
+  }
+
+  // Set save method depending on environment
+  ag.setAgnitioInterface();
+
   /***********************************************************
   *
   * Pub/Sub
@@ -90,6 +120,16 @@
 
   var listeners = {};
   var tokens = {}; // Will allow unregistering listener
+
+  /**
+  * Publish event asynchronously
+  * @private       
+  */
+  function publish (api, data) {
+    setTimeout(function() {
+      ag.publish(api, data);
+    },0); 
+  }
 
   // Listen to an event
   ag.on = function (event, callback) {
@@ -263,7 +303,7 @@
 
   /***********************************************************
   *
-  * Call built-in iPlanner functionality
+  * Call built-in Agnitio functionality
   *
   ***********************************************************/
 
@@ -754,21 +794,8 @@
     // throw new Error('JSON methods are not available, please add json2.js');
   }
 
-  /***********************************************************
-  *
-  * Save the version of this API to the Analyzer
-  *
-  ***********************************************************/
-
-  // Send the API version being used to the Analyzer
-  ag.submit.data({
-    unique: true,
-    categoryId: "ag-001",
-    category: "Versions",
-    labelId: "ag-001-001",
-    label: "Agnitio API version",
-    value: api_version
-  });
+  // We are ready now...
+  ag.init();
 
   /***********************************************************
   *

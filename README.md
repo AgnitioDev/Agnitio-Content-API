@@ -6,6 +6,13 @@ Please see following Wiki page for documentation: http://wiki.agnitio.com/index.
 
 # Change log
 
+## Version 1.6.0 2014-12-01
+
+Prepared for Engager C#
+
+- window.setAgnitioPlatform
+- ag.setAgnitioInterface
+
 ## Version 1.5.1 2014-07-01
 
 API added: ag.platform
