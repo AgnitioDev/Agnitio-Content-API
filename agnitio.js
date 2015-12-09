@@ -7,7 +7,7 @@
  * http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)
  *
  * @author     Stefan Liden
- * @copyright  Copyright 2014 Agnitio
+ * @copyright  Copyright 2015 Agnitio
  */
 
 /**
@@ -18,28 +18,29 @@
 window.setAgnitioPlatform = function(data) {
   var info = JSON.parse(data);
   window.agnitioInfo = info;
-  ag.setAgnitioInterface(info);
+  window.ag.setAgnitioInterface(info);
 };
 
 (function () {
 
-  var api_version = '1.6.0',
+  // Create the global Agnitio namespace 'ag'
+  var ag = window.ag || {};
+
+  var api_version = '1.6.2',
       customInvoke = false,
       appInterface = null,
       ua = navigator.userAgent,
       // From: http://davidwalsh.name/detect-ipad
       isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
-      isSafari = ua.match(/Safari/i) != null,
+      isSafari = ua.match(/Safari/i) !== null,
       // UIWebView does not contain the word "Version" in user agent string
       isUIWebView = /(iPhone|iPod|iPad).*AppleWebKit(?!.*Version)/i.test(navigator.userAgent),
       // isAndroid = ua.indexOf("Android") > -1,
       isiPlanner = isUIWebView; // Default, TODO: check platform.isAgnitio
 
-  // Create the global Agnitio namespace 'ag'
-  window.ag = window.ag || {};
-
   // At this point entire API is available
   ag.init = function() {
+    window.ag = ag; // Make it available everywhere
     // Send the API version being used to the Analyzer
     ag.submit.data({
       unique: true,
@@ -74,7 +75,7 @@ window.setAgnitioPlatform = function(data) {
    * @param info object OPTIONAL      
    */
   ag.setAgnitioInterface = function(info) {
-    var info = info || window.agnitioInfo || window.iPlanner;
+    info = info || window.agnitioInfo || window.iPlanner;
     if (!info) {
       // Uncomment this for Engager C# version
       // connect("http://engager.agnitio.com", "agnitioInfo");
@@ -82,7 +83,7 @@ window.setAgnitioPlatform = function(data) {
     else if (info.applicationName === "Engager C#") {
       appInterface = "http://engager.agnitio.com";
     }
-    else if (info.applicationName === "Engager iOS" || info.applicationName === "CLM iPlanner") {
+    else if (info.localizedModel === "iPad") {
       appInterface = "objc://iplanner";
     }
     // Otherwise it will have to be set manually using ag.setInvoke
@@ -101,7 +102,7 @@ window.setAgnitioPlatform = function(data) {
   // Invoke public method of Agnitio device/server
   function connect (to, api, params) {
     var invokeString, iFrame;
-    invokeString = to + "/" + api + "?" + params,
+    invokeString = to + "/" + api + "?" + params;
     iFrame = document.createElement("IFRAME");
     iFrame.setAttribute("src", invokeString);
     document.body.appendChild(iFrame); 
@@ -179,12 +180,11 @@ window.setAgnitioPlatform = function(data) {
   // var debugger = ag.debug();
 
   ag.debug = function(writeToConsole) {
-
-    var writeToConsole = writeToConsole || false;
+    writeToConsole = typeof writeToConsole !== 'undefined' ? writeToConsole : false;
     var active = false;
     var data = []; // Container for all monitoring data
     // Event listener tokens
-    var meToken, pdfToken, mailToken;
+    var meToken, pdfToken, urlToken, mailToken, captureToken, presenterToken, contactsToken, attributesToken;
 
     if (window.console && window.console.warn) {
       console.warn('This presentation is in debug mode and will not submit to Agnitio Analytics.\nRemove ag.debug() call before publishing.');
@@ -226,6 +226,7 @@ window.setAgnitioPlatform = function(data) {
       active = true;
       meToken = ag.on('monitoringEvent', log);
       pdfToken = ag.on('openPDF', function(path) {write('openPDF', path)} );
+      urlToken = ag.on('openURL', function(url) {write('openURL', url)} );
       mailToken = ag.on('sendMail', function(params) {write('sendMail', params)} );
       captureToken = ag.on('captureImage', function(params) {write('captureImage', params)} );
       presenterToken = ag.on('getPresenter', function(params) {write('getPresenter', params)} );
@@ -238,6 +239,7 @@ window.setAgnitioPlatform = function(data) {
       active = false;
       ag.off(meToken); 
       ag.off(pdfToken); 
+      ag.off(urlToken); 
       ag.off(mailToken);
       ag.off(captureToken);
       ag.off(presenterToken);
@@ -259,6 +261,11 @@ window.setAgnitioPlatform = function(data) {
       getLog: getLog
     }
   };
+
+  // Backward compatibility
+  ag.debug.init = function(log) {
+    ag.debug(log);
+  }
 
   /***********************************************************
   *
@@ -347,6 +354,20 @@ window.setAgnitioPlatform = function(data) {
     }
   }
 
+
+  /**
+   * Opens URL in a viewer
+   * @public     
+   * @param path string   
+   * @param name string OPTIONAL
+   */
+  ag.openURL = function (url) {
+    var log = log || false,
+        fileName;
+    // invoke('openPDF', path); // Not yet supported in devices
+    publish('openURL', url);
+  }
+
   /**
    * Sends email from iPlanner
    * NOTE: If using string for file attachment it will expect a filename, not path
@@ -357,8 +378,8 @@ window.setAgnitioPlatform = function(data) {
    * @param files array/string  
    */
   ag.sendMail = function (address, subject, body, files) {
-    var files = files || '',
-        params, args, invokeString, iFrame;
+    files = files || '';
+    var params, args;
     if (typeof files === 'string' || files instanceof String) {
       params = {'address': address, 'subject': subject, 'body':body, 'fileName': files}
     }
@@ -383,8 +404,8 @@ window.setAgnitioPlatform = function(data) {
   ag.data = (function() {
     // Holder for contacts returned from calling 'ag.data.getCallContacts'
     var presenter = null,
-        call_attributes = null,
-        call_contacts = null;
+        call_attributes = [],
+        call_contacts = [];
 
     /**
      * Save returned presenter attributes to property
@@ -485,6 +506,191 @@ window.setAgnitioPlatform = function(data) {
 
   /***********************************************************
   *
+  * Communication between content and external host (e.g. in iFrames)
+  *
+  ***********************************************************/
+
+  /**
+   * @namespace     ag.msg
+   */
+  ag.msg = (function() {
+
+    var host;
+    var queue = [];
+    var msgListener; 
+
+    // Pass on monitoring events to host
+    msgListener = ag.on("monitoringEvent", function(event) {
+        send({
+          name: "monitoringEvent",
+          value: JSON.stringify(event)
+        });
+      });
+
+    function connect(source) {
+      host = source;
+      if (queue.length) processQueue(); // Events before connection
+    }
+
+    function processQueue() {
+      var item;
+      if (host) {
+        while (queue.length > 0) {
+          item = queue.shift();
+          host.postMessage(item, "*");
+        }
+      }
+    }
+
+    // Called by content
+    // data: {name: 'event', value: 'data'}
+    function send(data) {
+      queue.push(data);
+      processQueue();
+    }
+
+    return {
+      connect: connect,
+      send: send
+    }
+
+  }());
+
+  /***********************************************************
+  *
+  * Provide content to users
+  *
+  ***********************************************************/
+
+  /**
+   * @namespace     ag.content
+   * @description   Functionality for Agnitio Microsites
+   */
+  ag.content = (function() {
+
+    var contentData = {};
+
+    // Setup communication between Microsite and Content
+    // This is called from Microsite server
+    // @param source - The Microsite host
+    function setup(source, data) {
+      contentData.topics = data.topics || [];
+      contentData.inactiveTopics = data.inactiveTopics || [];
+      contentData.email = data.email || '';
+      contentData.name = data.user || '';
+
+      ag.msg.connect(source);
+
+      // Send event so that frameworks/presentations can act on it
+      publish('contentData', contentData);
+
+      // Allow styles specific for Microsites
+      document.documentElement.classList.add('ag-microsite');
+    }
+
+    /**
+     * Save returned settings
+     * Is used as callback in 'ag.content.getSettings'
+     * @private
+     * @param data Data object
+     */
+    function saveSettings (data) {
+      var attributes = JSON.parse(data);
+      ag.content.settings = attributes;
+    }
+
+    function get() {
+      return contentData;
+    }
+
+    function getSettings() {
+      invoke('getContentSettings', '{"resultFunction": "ag.content._saveSettings"}');
+      publish('getSettings', null);
+    }
+
+    // Will contact Mobilizer with data for single user
+    function provide(users, content) {
+      var userList = JSON.stringify(users);
+      var ids = JSON.stringify(content);
+      invoke('provideContent', '{"users": ' + userList + ', "content": ' + ids + '}');
+      publish('provideContent', {users: users, content: content});
+    }
+
+    function send(type, users, content, template) {
+      var userList = JSON.stringify(users);
+      var ids = JSON.stringify(content);
+      invoke('sendContent', '{"users": ' + userList + ', "content": ' + ids + ', "type": "' + type + '", "template": "' + template + '"}');
+      publish('sendContent', {users: users, content: content, type: type, template: template});
+    }
+
+    // Provision content but send to presenter instead of directly to contacts. Otherwise works as ag.content.send
+    function proxy(type, users, content, template) {
+      var userList = JSON.stringify(users);
+      var ids = JSON.stringify(content);
+      invoke('proxyContent', '{"users": ' + userList + ', "content": ' + ids + ', "type": "' + type + '", "template": "' + template + '"}');
+      publish('proxyContent', {users: users, content: content, type: type, template: template});
+    }
+
+    return {
+      setup: setup,
+      provide: provide,
+      send: send,
+      proxy: proxy,
+      get: get,
+      getSettings: getSettings,
+      _saveSettings: saveSettings
+    }
+
+  }());
+
+  /***********************************************************
+  *
+  * Allow content to be remote controlled
+  *
+  ***********************************************************/
+
+  /**
+   * @namespace     ag.remote
+   * @description   Functionality for remote control of presentations
+   */
+  ag.remote = (function() {
+
+    var userrole;
+
+    // Called by the hosting app once it has loaded the content in iFrame
+    // e.g. Agnitio Remote calls it once the user has loaded the presentation
+    function register(source, data) {
+
+      ag.msg.connect(source);
+
+      userrole = data.role;
+      
+      // Send event so that frameworks/presentations can act on it
+      publish('registerUser', data);
+      
+      // Allow styles specific for remote
+      document.documentElement.classList.add('ag-remote');
+      if (data.role === "presenter") {
+        document.documentElement.classList.add('ag-role-presenter');
+      }
+      else {
+        document.documentElement.classList.add('ag-role-contact');
+      }
+    }
+
+    function getUserRole() {
+      return userrole;
+    }
+
+    return {
+      register: register,
+      getUserRole: getUserRole
+    }
+
+  }());
+
+  /***********************************************************
+  *
   * Save data to the Agnitio Analyzer DB (direct or via iPlanner)
   *
   ***********************************************************/
@@ -523,7 +729,7 @@ window.setAgnitioPlatform = function(data) {
      * Get current time in seconds
      * @private
      */
-    function timestamp () {
+    function timestamp() {
       return Math.floor((new Date().getTime()) / 1000);
     }
 
@@ -661,7 +867,7 @@ window.setAgnitioPlatform = function(data) {
       };
 
       // Set the opened document as the current one
-      currentDocument = id;
+      // currentDocument = id;
 
       ag.submit.save(data);
     }
@@ -692,7 +898,7 @@ window.setAgnitioPlatform = function(data) {
       };
 
       // Set the opened document as the current one
-      currentDocument = id;
+      // currentDocument = id;
 
       ag.submit.save(data);
     }
@@ -704,26 +910,7 @@ window.setAgnitioPlatform = function(data) {
      * @param data Data object to save
      * DEPRECATED
      */ 
-    function structure (name, structure) {
-
-      var monitorData,
-          now = timestamp();
-
-      monitorData = {
-        isUnique: true,
-        type: "custom",
-        category: "Presentation structure",
-        categoryId: "ag-002",
-        label: name,
-        labelId: "",
-        value: structure,
-        valueId: "",
-        valueType: "text",
-        time: now
-      }
-
-      ag.submit.save(monitorData);
-    }
+    function dep_structure () {}
 
     /**
      * Save a custom event
@@ -739,7 +926,7 @@ window.setAgnitioPlatform = function(data) {
           labelId = data.labelId || null,
           valueId = data.valueId || null,
           valueType = data.valueType || 'text',
-          path = data.path || null;
+          path = data.path || null,
           isUnique = data.unique || false;
 
       monitorData = {
@@ -769,7 +956,7 @@ window.setAgnitioPlatform = function(data) {
       resume: resume,
       'document': documentOpen,
       reference: referenceOpen,
-      structure: structure,
+      structure: dep_structure,
       data: customEvent,
       'event': customEvent,
       _slideExit: slideExit
@@ -779,20 +966,41 @@ window.setAgnitioPlatform = function(data) {
 
   /***********************************************************
   *
-  * Make sure JSON is available, else make it so
+  * Listen to messages from the outside
   *
   ***********************************************************/
 
-  // Make sure JSON methods are available
-  // TODO: TEST!
-  if (!isiPad && !window.JSON) {
-    var script  = document.createElement('script');
-    script.src  = file;
-    script.type = 'text/javascript';
-    script.defer = true;
-    document.getElementsByTagName('head').item(0).appendChild('lib/json2.js');
-    // throw new Error('JSON methods are not available, please add json2.js');
-  }
+  function receiveMessage(event) {
+
+      // TODO: add check that the origin is an Agnitio server
+
+      if (event.data) {
+        if (typeof event.data === 'string') event.data = JSON.parse(event.data);
+        switch (event.data.name) {
+          case "navigate":
+            publish('goTo', event.data.path);
+            break;
+          case "enterState":
+            publish('enterState', event.data.stateData);
+            break;
+          case "exitState":
+            publish('resetState', event.data.stateData);
+            break;
+          case "register":
+            ag.remote.register(event.source, event.data);
+            break;
+          case "provide":
+            ag.content.setup(event.source, event.data);
+            break;
+          case "connect":
+            ag.msg.connect(event.source);
+            break;
+        }
+      }
+    }
+
+    // Listen for messages from outside
+    window.addEventListener("message", receiveMessage, false);
 
   // We are ready now...
   ag.init();

@@ -1,17 +1,45 @@
 # Agnitio Content API
 
-The Agnitio Content API is a collection of JavaScript methods that allow a developer to communicate with the Agnitio platform from the content.
+The API that can be used from any HTML content to communicate with the Agnitio platform (devices and servers).
 
-Please see following Wiki page for documentation: http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)
+These are the files that go in the viewer/js/ folder in devices and servers.
 
-# Change log
+Please see following [Wiki page](http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)) for documentation.
 
-## Version 1.6.0 2014-12-01
+__Content:__
 
-Prepared for Engager C#
+- agnitio.js
 
-- window.setAgnitioPlatform
-- ag.setAgnitioInterface
+*Deprecated:*
+
+- closepresentation.js
+- monitor.js
+- pdf.js
+- sendmail.js
+
+## Change log
+
+### Version 1.6.2 2015-12-07
+
+Important bug fix. 1.6.1 (only bundled with Accelerator) didn't work properly in iPlanner.
+
+- Fixed a device check as iOS Engager vs. iPlanner has diverged
+
+### Version 1.6.1 2015-09-20
+
+Extension of provisioning API
+
+- Added ag.content.send
+
+### Version 1.6.0 2015-09-03
+
+Enabling remote controlled presentations, microsites, and making it play nice with Engager C#.
+
+- Enabled possibility to use with Engager C#
+- Added ag.msg
+- Added ag.remote
+- Added ag.content
+- Added ag.openURL
 
 ## Version 1.5.1 2014-07-01
 
