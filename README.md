@@ -19,6 +19,13 @@ __Content:__
 
 ## Change log
 
+### Version 1.6.3 2016-06-29
+
+Extension of provisioning API
+
+- Add subject to ag.content.proxy
+- Add subject to ag.content.send
+
 ### Version 1.6.2 2015-12-07
 
 Important bug fix. 1.6.1 (only bundled with Accelerator) didn't work properly in iPlanner.
