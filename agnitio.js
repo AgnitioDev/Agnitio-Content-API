@@ -617,19 +617,18 @@ window.setAgnitioPlatform = function(data) {
     }
 
     function _sendContentType(type, users, content, template, subject, contentType) {
-      var userList = JSON.stringify(users);
-      var ids = JSON.stringify(content);
+      var data = {
+        users: users,
+        content: content,
+        type: type,
+        template: template
+      };
 
-      if (type == 'email'){
-        invoke(contentType, '{"users": ' + userList + ', "content": ' + ids + ', "type": "' + type +
-            '", "template": "' + template + '", "subject": "' + subject + '"}');
-        publish(contentType, {users: users, content: content, type: type, template: template, subject: subject});
+      if (type == 'email') {
+        data.subject = encodeURI(subject);
       }
-      else{
-        invoke(contentType, '{"users": ' + userList + ', "content": ' + ids + ', "type": "' + type +
-            '", "template": "' + template + '"}');
-        publish(contentType, {users: users, content: content, type: type, template: template});
-      }
+      invoke(contentType, JSON.stringify(data));
+      publish(contentType, data)
     }
 
     function send(type, users, content, template, subject) {
