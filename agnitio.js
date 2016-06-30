@@ -625,7 +625,7 @@ window.setAgnitioPlatform = function(data) {
       };
 
       if (type == 'email') {
-        data.subject = encodeURI(subject);
+        data.subject = subject;
       }
       invoke(contentType, JSON.stringify(data));
       publish(contentType, data)
