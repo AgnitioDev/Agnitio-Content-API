@@ -13,7 +13,7 @@
 /**
  * Used as callback when getting Agnitio platform info from device
  * Has to be directly on window object
- * @public        
+ * @public
  */
 window.setAgnitioPlatform = function(data) {
   var info = JSON.parse(data);
@@ -26,7 +26,7 @@ window.setAgnitioPlatform = function(data) {
   // Create the global Agnitio namespace 'ag'
   var ag = window.ag || {};
 
-  var api_version = '1.6.2',
+  var api_version = '1.6.3',
       customInvoke = false,
       appInterface = null,
       ua = navigator.userAgent,
@@ -54,7 +54,7 @@ window.setAgnitioPlatform = function(data) {
 
   /**
    * Set custom invoke interface
-   * @public       
+   * @public
    */
   ag.setInvoke = function (to) {
     customInvoke = true;
@@ -62,17 +62,17 @@ window.setAgnitioPlatform = function(data) {
   }
 
   /**
-   * Get version of Agnitio Content API (this file) 
-   * @public        
+   * Get version of Agnitio Content API (this file)
+   * @public
    */
   ag.getVersion = function () {
     return api_version;
   }
 
   /**
-   * Get version of Agnitio Content API (this file) 
+   * Get version of Agnitio Content API (this file)
    * @public
-   * @param info object OPTIONAL      
+   * @param info object OPTIONAL
    */
   ag.setAgnitioInterface = function(info) {
     info = info || window.agnitioInfo || window.iPlanner;
@@ -92,12 +92,12 @@ window.setAgnitioPlatform = function(data) {
 
   /**
    * Invoke method on platform/device
-   * @private       
+   * @private
    */
   function invoke (api, params) {
     // Default will be no action
     if (appInterface) connect(appInterface, api, encodeURIComponent(params));
-  } 
+  }
 
   // Invoke public method of Agnitio device/server
   function connect (to, api, params) {
@@ -105,7 +105,7 @@ window.setAgnitioPlatform = function(data) {
     invokeString = to + "/" + api + "?" + params;
     iFrame = document.createElement("IFRAME");
     iFrame.setAttribute("src", invokeString);
-    document.body.appendChild(iFrame); 
+    document.body.appendChild(iFrame);
     iFrame.parentNode.removeChild(iFrame);
     iFrame = null;
   }
@@ -124,12 +124,12 @@ window.setAgnitioPlatform = function(data) {
 
   /**
   * Publish event asynchronously
-  * @private       
+  * @private
   */
   function publish (api, data) {
     setTimeout(function() {
       ag.publish(api, data);
-    },0); 
+    },0);
   }
 
   // Listen to an event
@@ -214,7 +214,7 @@ window.setAgnitioPlatform = function(data) {
             }
           });
         }
-        data.push(event);   
+        data.push(event);
         write(event.category, event);
       }
       // TODO: log error
@@ -237,9 +237,9 @@ window.setAgnitioPlatform = function(data) {
     // Stop debugging
     function stop () {
       active = false;
-      ag.off(meToken); 
-      ag.off(pdfToken); 
-      ag.off(urlToken); 
+      ag.off(meToken);
+      ag.off(pdfToken);
+      ag.off(urlToken);
       ag.off(mailToken);
       ag.off(captureToken);
       ag.off(presenterToken);
@@ -315,9 +315,9 @@ window.setAgnitioPlatform = function(data) {
   ***********************************************************/
 
   /**
-   * Capture canvas image (i.e. signature) from presentation. 
-   * @public     
-   * @param options object   
+   * Capture canvas image (i.e. signature) from presentation.
+   * @public
+   * @param options object
    */
   ag.captureImage = function (options) {
     var params = {
@@ -338,8 +338,8 @@ window.setAgnitioPlatform = function(data) {
   /**
    * Opens PDF in iPlanner or browser
    * If name is included it will also monitor document
-   * @public     
-   * @param path string   
+   * @public
+   * @param path string
    * @param name string OPTIONAL
    */
   ag.openPDF = function (path, name) {
@@ -357,8 +357,8 @@ window.setAgnitioPlatform = function(data) {
 
   /**
    * Opens URL in a viewer
-   * @public     
-   * @param path string   
+   * @public
+   * @param path string
    * @param name string OPTIONAL
    */
   ag.openURL = function (url) {
@@ -371,11 +371,11 @@ window.setAgnitioPlatform = function(data) {
   /**
    * Sends email from iPlanner
    * NOTE: If using string for file attachment it will expect a filename, not path
-   * @public     
-   * @param address string   
-   * @param subject string   
-   * @param body string   
-   * @param files array/string  
+   * @public
+   * @param address string
+   * @param subject string
+   * @param body string
+   * @param files array/string
    */
   ag.sendMail = function (address, subject, body, files) {
     files = files || '';
@@ -517,7 +517,7 @@ window.setAgnitioPlatform = function(data) {
 
     var host;
     var queue = [];
-    var msgListener; 
+    var msgListener;
 
     // Pass on monitoring events to host
     msgListener = ag.on("monitoringEvent", function(event) {
@@ -616,19 +616,28 @@ window.setAgnitioPlatform = function(data) {
       publish('provideContent', {users: users, content: content});
     }
 
-    function send(type, users, content, template) {
-      var userList = JSON.stringify(users);
-      var ids = JSON.stringify(content);
-      invoke('sendContent', '{"users": ' + userList + ', "content": ' + ids + ', "type": "' + type + '", "template": "' + template + '"}');
-      publish('sendContent', {users: users, content: content, type: type, template: template});
+    function _sendContentType(type, users, content, template, subject, contentType) {
+      var data = {
+        users: users,
+        content: content,
+        type: type,
+        template: template
+      };
+
+      if (type == 'email') {
+        data.subject = subject;
+      }
+      invoke(contentType, JSON.stringify(data));
+      publish(contentType, data)
+    }
+
+    function send(type, users, content, template, subject) {
+      _sendContentType(type, users, content, template, subject, 'sendContent');
     }
 
     // Provision content but send to presenter instead of directly to contacts. Otherwise works as ag.content.send
-    function proxy(type, users, content, template) {
-      var userList = JSON.stringify(users);
-      var ids = JSON.stringify(content);
-      invoke('proxyContent', '{"users": ' + userList + ', "content": ' + ids + ', "type": "' + type + '", "template": "' + template + '"}');
-      publish('proxyContent', {users: users, content: content, type: type, template: template});
+    function proxy(type, users, content, template, subject) {
+      _sendContentType(type, users, content, template, subject, 'proxyContent');
     }
 
     return {
@@ -664,10 +673,10 @@ window.setAgnitioPlatform = function(data) {
       ag.msg.connect(source);
 
       userrole = data.role;
-      
+
       // Send event so that frameworks/presentations can act on it
       publish('registerUser', data);
-      
+
       // Allow styles specific for remote
       document.documentElement.classList.add('ag-remote');
       if (data.role === "presenter") {
@@ -846,7 +855,7 @@ window.setAgnitioPlatform = function(data) {
      * @public
      * @param id Id of the opened document
      * @param name Name of the opened document
-     */ 
+     */
     function documentOpen (id, name) {
 
       var data, now;
@@ -877,7 +886,7 @@ window.setAgnitioPlatform = function(data) {
      * @public
      * @param id Id of the opened reference
      * @param name Name of the opened reference
-     */ 
+     */
     function referenceOpen (id, name) {
 
       var data, now;
@@ -909,14 +918,14 @@ window.setAgnitioPlatform = function(data) {
      * @param name string Label to identify structure
      * @param data Data object to save
      * DEPRECATED
-     */ 
+     */
     function dep_structure () {}
 
     /**
      * Save a custom event
      * @public
      * @param data Data object to save
-     */ 
+     */
     function customEvent (data) {
 
       var monitorData,
