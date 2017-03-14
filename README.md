@@ -2,13 +2,12 @@
 
 The API that can be used from any HTML content to communicate with the Agnitio platform (devices and servers).
 
-These are the files that go in the viewer/js/ folder in devices and servers.
-
-Please see following [Wiki page](http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)) for documentation.
+These are the files that go in the `viewer/js` folder in devices and servers.
 
 __Content:__
 
-- agnitio.js
+- agnitio.js (see [Wiki page](http://wiki.agnitio.com/index.php/Agnitio_Content_API_(iPad)) for documentation)
+- agnitioExternal.js (see [the documentation](./external/README.md))
 
 *Deprecated:*
 
@@ -55,7 +54,7 @@ Updated device check for changes in iOS 7.1
 
 - Added ag.platform.info()
 - Added ag.platform.isAgnitio()
-- Added ag.platform.isApp() 
+- Added ag.platform.isApp()
 
 ## Version 1.5.0 2014-05-15
 
