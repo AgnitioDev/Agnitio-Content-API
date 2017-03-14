@@ -1,10 +1,14 @@
-## agnitioExternal.js ##
+## agnitioExternal.js
 
 The external post call reporting options available in Rainmaker allow the customers to include additional survey-like form to be filled out after the call is performed. One of the possibilities to use this feature is to display an external website, where the Sales Rep can fill out the required fields. This website is meant to be managed and hosted by the customer.
 
-In order to enable communication between the website and the Engager device, it is required to embed the `agnitioExternal.js` library within the website.
+In order to enable communication between the website and the Engager device, it is required to embed the `agnitioExternal.min.js` library within the website.
 
-### How to use ###
+### Example of an external post-call reporting target website
+
+See [here](../docs/external).
+
+### How to use
 
 1. Download the JS file into your website project:
 ```
@@ -16,7 +20,8 @@ wget https://raw.githubusercontent.com/Agnitio/Agnitio-Content-API/master/extern
 ```
 3. Start using the external post call reporting options!
 
-### Available API methods ###
+### Available API methods
+
 1. Get library version:
 ```
 agExternal.getVersion();
