@@ -1004,6 +1004,9 @@ window.setAgnitioPlatform = function(data) {
           case "connect":
             ag.msg.connect(event.source);
             break;
+          case "publishDynamicAgenda": // for dynamic-agenda module
+            publish('publishDynamicAgenda', event.data.daData);
+            break;
         }
       }
     }
