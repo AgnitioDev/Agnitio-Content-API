@@ -13,14 +13,14 @@
 (function () {
 
   // Is script running on iOS device?
-  var api_version = '1.5.1',
+  var api_version = '1.5.2',
       customInvoke = false,
       ua = navigator.userAgent,
       // From: http://davidwalsh.name/detect-ipad
       isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
       isSafari = ua.match(/Safari/i) != null,
       // UIWebView does not contain the word "Version" in user agent string
-      isUIWebView = /(iPhone|iPod|iPad).*AppleWebKit(?!.*Version)/i.test(navigator.userAgent),
+      isUIWebView = /(iPhone|iPod|iPad)/i.test(navigator.userAgent),
       // isAndroid = ua.indexOf("Android") > -1,
       isiPlanner = isUIWebView; // Default, TODO: check platform.isAgnitio
 

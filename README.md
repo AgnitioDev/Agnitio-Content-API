@@ -6,6 +6,10 @@ Please see following Wiki page for documentation: http://wiki.agnitio.com/index.
 
 # Change log
 
+## Version 1.5.2 2017-04-05
+
+Fix for iPad Pro
+
 ## Version 1.5.1 2014-07-01
 
 API added: ag.platform
