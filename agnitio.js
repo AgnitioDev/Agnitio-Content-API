@@ -20,9 +20,9 @@
       isiPad = /iPad/i.test(ua) || /iPhone OS 3_1_2/i.test(ua) || /iPhone OS 3_2_2/i.test(ua),
       isSafari = ua.match(/Safari/i) != null,
       // UIWebView does not contain the word "Version" in user agent string
-      isUIWebView = /(iPhone|iPod|iPad)/i.test(navigator.userAgent),
+      isiOS = /(iPhone|iPod|iPad)/i.test(navigator.userAgent),
       // isAndroid = ua.indexOf("Android") > -1,
-      isiPlanner = isUIWebView; // Default, TODO: check platform.isAgnitio
+      isiPlanner = isiOS; // Default,
 
   /**
    * Invoke method on platform/device
@@ -249,7 +249,7 @@
     // Utility for checking if currently running in an App (vs. web)
     // Currently check for iOS only
     function isApp () {
-      if (isUIWebView) return true;
+      if (isiOS) return true;
       return false;
     }
 
