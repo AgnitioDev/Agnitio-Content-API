@@ -15,6 +15,7 @@
  * Has to be directly on window object
  * @public
  */
+
 window.setAgnitioPlatform = function(data) {
   var info = JSON.parse(data);
   window.agnitioInfo = info;
@@ -26,7 +27,7 @@ window.setAgnitioPlatform = function(data) {
   // Create the global Agnitio namespace 'ag'
   var ag = window.ag || {};
 
-  var api_version = '1.6.3',
+  var api_version = '1.6.4',
       customInvoke = false,
       appInterface = null,
       ua = navigator.userAgent,
@@ -811,35 +812,39 @@ window.setAgnitioPlatform = function(data) {
      * @private
      */
     function slideExit () {
-
-      var data, now;
-
       if (!currentSlideId) { return; }
 
-      now = timestamp();
+        var monitoringData,
+            now            = timestamp(),
+            chapterName    = currentData.chapter || null,
+            chapterId      = currentData.chapterId || null,
+            subChapterName = currentData.subChapter || null,
+            subChapterId   = currentData.subChapterId || null,
+            slideIndex     = currentData.slideIndex || null,
+            slidePath      = currentData.path || null,
 
-      data = {
-        type: "system",
-        categoryId: null,
-        category: "slideExit",
-        labelId: "id",
-        label: "name",
-        valueId: currentSlideId,
-        value: undefined,
-        valueType: undefined,
-        time: now,
-        slideIndex: undefined,
-        slidePath: undefined,
-        chapterName:undefined,
-        chapterId: undefined,
-        subChapterName: undefined,
-        subChapterId: undefined
+        monitoringData = {
+          type: "system",
+          categoryId: null,
+          category: "slideExit",
+          labelId: "id",
+          label: "name",
+          valueId: currentSlideId,
+          value: currentData.name,
+          valueType: null,
+          time: now,
+          slideIndex: slideIndex,
+          slidePath: slidePath,
+          chapterName: chapterName,
+          chapterId: chapterId,
+          subChapterName: subChapterName,
+          subChapterId: subChapterId
       };
 
       // Remove current slide
       currentSlideId = null;
 
-      ag.submit.save(data);
+      ag.submit.save(monitoringData);
     }
 
     /**

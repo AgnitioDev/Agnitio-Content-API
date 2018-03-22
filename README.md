@@ -18,6 +18,12 @@ __Content:__
 
 ## Change log
 
+### Version 1.6.4 2018-03-22
+
+Extension in sending slideExit event
+
+- Added sending slideExit event necessary data
+
 ### Version 1.6.3 2016-06-29
 
 Extension of provisioning API
