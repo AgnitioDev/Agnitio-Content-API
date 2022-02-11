@@ -20,7 +20,6 @@ wget https://raw.githubusercontent.com/Agnitio/Agnitio-Content-API/master/extern
 ```
 3. Start using the external post call reporting options!
 
-
 ### Available API methods
 
 1. Get library version:
@@ -35,9 +34,3 @@ agExternal.getName();
 ```
 agExternal.markInteractionAsCompleted();
 ```
-
-### Using version 1.0.1
-
-1. Content-Api is supporting MyLive web app, MyLive Web users has to upgrade v.1.0.1 for post call reporting.
-
-
